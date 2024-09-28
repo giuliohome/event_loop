@@ -37,10 +37,7 @@ func Withdraw(ctx context.Context, jsonData PaymentDetails) (string, error) {
 		return "error", fmt.Errorf("Error unmarshalling JSON: %v \nfrom output %s ", err, output)
 	}
 
-	referenceID := fmt.Sprintf("%s-withdrawal", result.ReferenceID)
-	bank := BankingService{"bank-api.example.com"}
-	confirmation, err := bank.Withdraw(result.SourceAccount, result.Amount, referenceID)
-	return confirmation, err
+	return result.confirmation, err
 }
 
 
@@ -59,7 +56,7 @@ func WithdrawProcess(data_input string) () {
 	referenceID := fmt.Sprintf("%s-withdrawal", data.ReferenceID) + "_ProcessPID_" + strconv.Itoa(os.Getpid())
 	bank := BankingService{"bank-api.example.com"}
 	confirmation, err := bank.Withdraw(data.SourceAccount, data.Amount, referenceID)
-	_  = confirmation
+	data.confirmation  = confirmation
 	data.ReferenceID = referenceID
 	if err != nil {
 		panic(fmt.Sprintf("Withdrowal error %v", err))
