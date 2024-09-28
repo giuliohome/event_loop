@@ -1,0 +1,109 @@
+package app
+
+import (
+	"os"
+	"os/exec"
+	"strconv"
+	"context"
+	"fmt"
+	"log"
+	"encoding/json"	
+)
+
+// @@@SNIPSTART money-transfer-project-template-go-activity-withdraw
+func Withdraw(ctx context.Context, jsonData PaymentDetails) (string, error) {
+	log.Printf("Withdrawing $%d from account %s running on process PID: %dn.\n\n",
+		jsonData.Amount,
+		jsonData.SourceAccount,
+		os.Getpid(),
+	)
+
+	// Serialize the data to JSON
+	data, err := json.Marshal(jsonData)
+	if err != nil {
+		fmt.Println("Serialization failure")
+		return "error", fmt.Errorf("Serialization error: %v", err)
+	}
+
+	ex, err := os.Executable()
+	cmd := exec.Command(ex, string(data))
+	output, err := cmd.CombinedOutput() // Capture output from the subprocess
+	if err != nil {
+		return "error", fmt.Errorf("subprocess error: %v, output: %s", err, string(output))
+	}
+	fmt.Println("Subprocess output:", string(output))
+	var result PaymentDetails
+	if err := json.Unmarshal(output, &result); err != nil {
+		return "error", fmt.Errorf("Error unmarshalling JSON: %v \nfrom output %s ", err, output)
+	}
+
+	referenceID := fmt.Sprintf("%s-withdrawal", result.ReferenceID)
+	bank := BankingService{"bank-api.example.com"}
+	confirmation, err := bank.Withdraw(result.SourceAccount, result.Amount, referenceID)
+	return confirmation, err
+}
+
+
+func WithdrawProcess(data_input string) () {
+	var data PaymentDetails
+
+	if err := json.Unmarshal([]byte(data_input), &data); err != nil {
+		panic(fmt.Sprintf("Error unmarshalling JSON: %v", err))
+	}
+	/*log.Printf("Withdrawing $%d from account %s running on process PID: %dn.\n\n",
+		data.Amount,
+		data.SourceAccount,
+		os.Getpid(),
+	)*/
+
+	referenceID := fmt.Sprintf("%s-withdrawal", data.ReferenceID) + "_ProcessPID_" + strconv.Itoa(os.Getpid())
+	bank := BankingService{"bank-api.example.com"}
+	confirmation, err := bank.Withdraw(data.SourceAccount, data.Amount, referenceID)
+	_  = confirmation
+	data.ReferenceID = referenceID
+	if err != nil {
+		panic(fmt.Sprintf("Withdrowal error %v", err))
+	}
+
+	// Serialize the data to JSON
+	data_out, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Serialization failure %v", err)
+	}
+	fmt.Printf( string(data_out) )
+}
+
+// @@@SNIPEND
+
+// @@@SNIPSTART money-transfer-project-template-go-activity-deposit
+func Deposit(ctx context.Context, data PaymentDetails) (string, error) {
+	log.Printf("Depositing $%d into account %s running on process PID: %dn.\n\n",
+		data.Amount,
+		data.TargetAccount,
+		os.Getpid(),
+	)
+
+	referenceID := fmt.Sprintf("%s-deposit", data.ReferenceID)
+	bank := BankingService{"bank-api.example.com"}
+	// Uncomment the next line and comment the one after that to simulate an unknown failure
+	// confirmation, err := bank.DepositThatFails(data.TargetAccount, data.Amount, referenceID)
+	confirmation, err := bank.Deposit(data.TargetAccount, data.Amount, referenceID)
+	return confirmation, err
+}
+
+// @@@SNIPEND
+
+// @@@SNIPSTART money-transfer-project-template-go-activity-refund
+func Refund(ctx context.Context, data PaymentDetails) (string, error) {
+	log.Printf("Refunding $%v back into account %v.\n\n",
+		data.Amount,
+		data.SourceAccount,
+	)
+
+	referenceID := fmt.Sprintf("%s-refund", data.ReferenceID)
+	bank := BankingService{"bank-api.example.com"}
+	confirmation, err := bank.Deposit(data.SourceAccount, data.Amount, referenceID)
+	return confirmation, err
+}
+
+// @@@SNIPEND
