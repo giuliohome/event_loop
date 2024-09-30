@@ -28,14 +28,40 @@ func Withdraw(ctx context.Context, jsonData PaymentDetails) (string, error) {
 	if err != nil {
 		return "error", fmt.Errorf("executable error: %v", err)
 	}
-	cmd := exec.Command(ex, string(data))
+
+	// Write the JSON data to a temporary file
+	tempFileIn, err := os.CreateTemp("", "data.json")
+	if err != nil {
+		return "error", fmt.Errorf("Error creating temp file: %v", err)
+
+	}
+	defer os.Remove(tempFileIn.Name()) // Clean up
+
+	if err := os.WriteFile(tempFileIn.Name(), data, 0644); err != nil {
+		return "error", fmt.Errorf("Error writing temp file: %v", err)
+	}
+
+	tempFileOut, err := os.CreateTemp("", "data.json")
+	if err != nil {
+		return "error", fmt.Errorf("Error creating temp file: %v", err)
+
+	}
+	defer os.Remove(tempFileOut.Name()) // Clean up
+
+	cmd := exec.Command(ex, "WithdrawProcess", tempFileIn.Name(), tempFileOut.Name())
 	output, err := cmd.CombinedOutput() // Capture output from the subprocess
 	if err != nil {
 		return "error", fmt.Errorf("subprocess error: %v, output: %s", err, string(output))
 	}
 	fmt.Println("Subprocess output:", string(output))
+
+	data_output, err := os.ReadFile(tempFileOut.Name())
+	if err != nil {
+		return "error", fmt.Errorf("Error reading temp file: %v", err)
+	}
+
 	var result PaymentDetails
-	if err := json.Unmarshal(output, &result); err != nil {
+	if err := json.Unmarshal(data_output, &result); err != nil {
 		return "error", fmt.Errorf("unmarshalling JSON: %v \nfrom output %s ", err, output)
 	}
 	fmt.Printf("Result unmarshalled: %v confirmation %s", result, result.Confirmation)
@@ -43,14 +69,20 @@ func Withdraw(ctx context.Context, jsonData PaymentDetails) (string, error) {
 	return result.Confirmation, err
 }
 
-func WithdrawProcess(data_input string) {
+func WithdrawProcess(data_input_file string, data_output_file string) {
 	var data PaymentDetails
+
+	fmt.Printf("I'm in the subprocess with PID %d\n", os.Getpid())
+
+	// Read the JSON data from the file
+	data_input, err := os.ReadFile(data_input_file)
+	if err != nil {
+		panic(fmt.Sprintf("Error reading file: %v", err))
+	}
 
 	if err := json.Unmarshal([]byte(data_input), &data); err != nil {
 		panic(fmt.Sprintf("Error unmarshalling JSON: %v", err))
 	}
-	/* do not write to output except for the final result
-	)*/
 
 	referenceID := fmt.Sprintf("%s-withdrawal_ProcessPID_%d", data.ReferenceID, os.Getpid())
 	data.ReferenceID = referenceID
@@ -66,7 +98,10 @@ func WithdrawProcess(data_input string) {
 	if err != nil {
 		fmt.Printf("Serialization failure %v", err)
 	}
-	fmt.Println(string(data_out))
+	fmt.Println("writing output " + string(data_out) + " to " + data_output_file)
+	if err := os.WriteFile(data_output_file, data_out, 0644); err != nil {
+		fmt.Printf("Error writing temp file: %v", err)
+	}
 }
 
 // @@@SNIPEND
