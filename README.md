@@ -47,40 +47,6 @@ func Withdraw(ctx context.Context, jsonData PaymentDetails) (string, error) {
 
 ### Separate SubProcess
 ```go
-// @@@SNIPSTART money-transfer-project-template-go-activity-withdraw
-func Withdraw(ctx context.Context, jsonData PaymentDetails) (string, error) {
-	log.Printf("Withdrawing $%d from account %s running on process PID: %dn.\n\n",
-		jsonData.Amount,
-		jsonData.SourceAccount,
-		os.Getpid(),
-	)
-
-	// Serialize the data to JSON
-	data, err := json.Marshal(jsonData)
-	if err != nil {
-		fmt.Println("Serialization failure")
-		return "error", fmt.Errorf("serialization error: %v", err)
-	}
-
-	ex, err := os.Executable()
-	if err != nil {
-		return "error", fmt.Errorf("executable error: %v", err)
-	}
-	cmd := exec.Command(ex, string(data))
-	output, err := cmd.CombinedOutput() // Capture output from the subprocess
-	if err != nil {
-		return "error", fmt.Errorf("subprocess error: %v, output: %s", err, string(output))
-	}
-	fmt.Println("Subprocess output:", string(output))
-	var result PaymentDetails
-	if err := json.Unmarshal(output, &result); err != nil {
-		return "error", fmt.Errorf("unmarshalling JSON: %v \nfrom output %s ", err, output)
-	}
-	fmt.Printf("Result unmarshalled: %v confirmation %s", result, result.Confirmation)
-
-	return result.Confirmation, err
-}
-
 func WithdrawProcess(data_input string) {
 	var data PaymentDetails
 
