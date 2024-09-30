@@ -11,7 +11,7 @@ type PaymentDetails struct {
 	TargetAccount string
 	Amount        int
 	ReferenceID   string
-	confirmation  string
+	Confirmation  string
 }
 
 // @@@SNIPEND
